@@ -235,6 +235,7 @@ class SoupKitchen(object):
 
         return BeautifulSoup(markup)
 
+
 class ScholarConf(object):
     """Helper class for global settings."""
 
@@ -245,11 +246,13 @@ class ScholarConf(object):
 
     # USER_AGENT = 'Mozilla/5.0 (X11; U; FreeBSD i386; en-US; rv:1.9.2.9) Gecko/20100913 Firefox/3.6.9'
     # Let's update at this point (3/14):
-    USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64; rv:27.0) Gecko/20100101 Firefox/27.0'
+    USER_AGENT = 'Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/' \
+                 + '537.36 (KHTML, like Gecko) Chrome/72.0.3626.121 Safari/537.36'
 
     # If set, we will use this file to read/save cookies to enable
     # cookie use across sessions.
     COOKIE_JAR_FILE = None
+
 
 class ScholarUtils(object):
     """A wrapper for various utensils that come in handy."""
@@ -393,7 +396,7 @@ class ScholarArticleParser(object):
         self._parse_globals()
 
         # Now parse out listed articles:
-        for div in self.soup.findAll(ScholarArticleParser._tag_results_checker):
+        for div in self.soup.find_all(ScholarArticleParser._tag_results_checker):
             self._parse_article(div)
             self._clean_article()
             if self.article['title']:
@@ -409,9 +412,11 @@ class ScholarArticleParser(object):
             self.article['title'] = self.article['title'].strip()
 
     def _parse_globals(self):
-        tag = self.soup.find(name='div', attrs={'id': 'gs_ab_md'})
+        tag = self.soup.find(name='div', attrs={'id': 'gs_res_ccl_mid'})
+
         if tag is not None:
-            raw_text = tag.findAll(text=True)
+            raw_text = tag.find_all(text=True)
+
             # raw text is a list because the body contains <b> etc
             if raw_text is not None and len(raw_text) > 0:
                 try:
@@ -428,12 +433,13 @@ class ScholarArticleParser(object):
         self.article = ScholarArticle()
 
         for tag in div:
+            print(tag.replace(u'\xa0', u''))
             if not hasattr(tag, 'name'):
                 continue
 
             if tag.name == 'div' and self._tag_has_class(tag, 'gs_rt') and \
                     tag.h3 and tag.h3.a:
-                self.article['title'] = ''.join(tag.h3.a.findAll(text=True))
+                self.article['title'] = ''.join(tag.h3.a.find_all(text=True))
                 self.article['url'] = self._path2url(tag.h3.a['href'])
                 if self.article['url'].endswith('.pdf'):
                     self.article['url_pdf'] = self.article['url']
@@ -530,32 +536,6 @@ class ScholarArticleParser(object):
         return parts[0] + '?' + '&'.join(res)
 
 
-class ScholarArticleParser120201(ScholarArticleParser):
-    """
-    This class reflects update to the Scholar results page layout that
-    Google recently.
-    """
-    def _parse_article(self, div):
-        self.article = ScholarArticle()
-
-        for tag in div:
-            if not hasattr(tag, 'name'):
-                continue
-
-            if tag.name == 'h3' and self._tag_has_class(tag, 'gs_rt') and tag.a:
-                self.article['title'] = ''.join(tag.a.findAll(text=True))
-                self.article['url'] = self._path2url(tag.a['href'])
-                if self.article['url'].endswith('.pdf'):
-                    self.article['url_pdf'] = self.article['url']
-
-            if tag.name == 'div' and self._tag_has_class(tag, 'gs_a'):
-                year = self.year_re.findall(tag.text)
-                self.article['year'] = year[0] if len(year) > 0 else None
-
-            if tag.name == 'div' and self._tag_has_class(tag, 'gs_fl'):
-                self._parse_links(tag)
-
-
 class ScholarArticleParser120726(ScholarArticleParser):
     """
     This class reflects update to the Scholar results page layout that
@@ -567,9 +547,9 @@ class ScholarArticleParser120726(ScholarArticleParser):
         for tag in div:
             if not hasattr(tag, 'name'):
                 continue
-            if str(tag).lower().find('.pdf'):
-                if tag.find('div', {'class': 'gs_ttss'}):
-                    self._parse_links(tag.find('div', {'class': 'gs_ttss'}))
+            # if str(tag).lower().find('.pdf'):
+            #     if tag.find('div', {'class': 'gs_ttss'}):
+            #         self._parse_links(tag.find('div', {'class': 'gs_ttss'}))
 
             if tag.name == 'div' and self._tag_has_class(tag, 'gs_ri'):
                 # There are (at least) two formats here. In the first
@@ -596,15 +576,15 @@ class ScholarArticleParser120726(ScholarArticleParser):
                 # We now distinguish the two.
                 try:
                     atag = tag.h3.a
-                    self.article['title'] = ''.join(atag.findAll(text=True))
+                    self.article['title'] = ''.join(atag.find_all(text=True))
                     self.article['url'] = self._path2url(atag['href'])
                     if self.article['url'].endswith('.pdf'):
                         self.article['url_pdf'] = self.article['url']
                 except:
                     # Remove a few spans that have unneeded content (e.g. [CITATION])
-                    for span in tag.h3.findAll(name='span'):
+                    for span in tag.h3.find_all(name='span'):
                         span.clear()
-                    self.article['title'] = ''.join(tag.h3.findAll(text=True))
+                    self.article['title'] = ''.join(tag.h3.find_all(text=True))
 
                 if tag.find('div', {'class': 'gs_a'}):
                     year = self.year_re.findall(tag.find('div', {'class': 'gs_a'}).text)
@@ -615,7 +595,7 @@ class ScholarArticleParser120726(ScholarArticleParser):
 
                 if tag.find('div', {'class': 'gs_rs'}):
                     # These are the content excerpts rendered into the results.
-                    raw_text = tag.find('div', {'class': 'gs_rs'}).findAll(text=True)
+                    raw_text = tag.find('div', {'class': 'gs_rs'}).find_all(text=True)
                     if len(raw_text) > 0:
                         raw_text = ''.join(raw_text)
                         raw_text = raw_text.replace('\n', '')
@@ -1130,7 +1110,7 @@ def txt(querier, with_globals):
 
     articles = querier.articles
     for art in articles:
-        print(encode(art.as_txt()) + '\n')
+        print(str(encode(art.as_txt()) + '\n').replace(u'\xa0', u''))
 
 def csv(querier, header=False, sep='|'):
     articles = querier.articles
@@ -1290,6 +1270,7 @@ scholar.py -c 5 -a "albert einstein" -t --none "quantum theory" --after 1970"""
         options.count = min(options.count, ScholarConf.MAX_PAGE_RESULTS)
         query.set_num_page_results(options.count)
 
+    print(query.get_url())
     querier.send_query(query)
 
     if options.csv:
